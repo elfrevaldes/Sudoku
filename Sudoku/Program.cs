@@ -4,21 +4,12 @@ using System.Drawing;
 const short Column = 0;
 const short Row = 1;
 const short Value = 3;
-const char invalidCol = 'X';
+const short invalidCol = 0;
 const short invalidRow = 0;
 const short invalidValue = 0;
 const short NumRowCol = 9;
 short[,] board = new short[NumRowCol, NumRowCol];
 short[,] oriBoard = new short[NumRowCol, NumRowCol];
-
-void gameIntro()
-{
-    Console.WriteLine("Welcome to Sudoku:");
-    Console.WriteLine("The rules are simple select a column by saying c or C and a number follow by");
-    Console.WriteLine("the row r or R follow by a number and then the number desired in that spot ");
-    Console.WriteLine("Example: c1 9 or C1 9");
-    Console.WriteLine("If you want to quit the game just type quit or q and enter");
-}
 
 bool readBoard(string fileName)
 {
@@ -101,10 +92,14 @@ void copyBoard(short[,] boardToCopy)
 
 void displayBoard()
 {
+    Console.ForegroundColor = ConsoleColor.Yellow;
     Console.WriteLine("   A B C D E F G H I");
+    Console.ForegroundColor = ConsoleColor.White;
     for (int row = 0; row < NumRowCol; row++)
     {
+        Console.ForegroundColor = ConsoleColor.Yellow;
         Console.Write(row + 1 + "| ");
+        Console.ForegroundColor = ConsoleColor.White;
         for (int col = 0; col < NumRowCol; col++)
         {
             // do not display 0
@@ -132,22 +127,139 @@ void tString(string t)
 
 bool isValidCoordinate(Coordinates coordinates)
 {
-    if(coordinates.Column == invalidCol || coordinates.Row == invalidRow || coordinates.Value == invalidValue)
+    // is read only
+    if (oriBoard[coordinates.Row, coordinates.Column] > 0)
         return false;
 
-    if (coordinates.Column <= 'A' || coordinates.Column >= 'I')
+    if (coordinates.Row > 9 || coordinates.Row < 1)
         return false;
 
-    if(coordinates.Value <= 1 || coordinates.Value >= 9)
+    if (coordinates.Column > 9 || coordinates.Column < 1)
+        return false;
+
+    if(coordinates.Value < 1 || coordinates.Value > 9)
         return false;
 
     return true;
 }
 
+bool isInRange(short val) => val is >= 1 and <= 9;
+
+bool isValidCoordFrom(string coordinate, bool displayError = true)
+{
+    if (coordinate.Length > 4 || coordinate.Length < 3)
+    {
+        if(displayError)
+            Console.WriteLine(coordinate + " is not a valid input");
+        return false;
+    }
+    var newCoor = coordinate.ToUpper();
+    short value = 0;
+    short row = 0;
+    short col = 0;
+    // case of shorthand c17
+    if (coordinate.Length == 3)
+    {
+        if (!(short.TryParse(newCoor[Value - 1].ToString(), out value) && isInRange(value)))
+        {
+            if (displayError)
+                Console.WriteLine(coordinate[Value - 1] + " is not a valid input");
+            return false;
+        }
+        else
+        {
+            if (short.TryParse(newCoor[Row].ToString(), out row) && isInRange(row) &&
+                 short.TryParse(newCoor[Column].ToString(), out col) && isInRange(col))
+                return true;
+            else
+            {
+                if (displayError)
+                    Console.WriteLine(coordinate + " column, row or both are not valid");
+                return false;
+            }
+        }
+    }
+    // regular c1 7
+    if (!(short.TryParse(newCoor[Value].ToString(), out value) && isInRange(value)))
+    {
+        if (displayError)
+            Console.WriteLine(coordinate[Value] + " is not a valid input");
+        return false;
+    }
+    else
+    {
+        if(short.TryParse(newCoor[Row].ToString(), out row) && isInRange(row) &&
+             short.TryParse(newCoor[Column].ToString(), out col) && isInRange(col))
+        {
+            return true;
+        }
+        else
+        {
+            if (displayError)
+                Console.WriteLine(coordinate + " column, row or both are not valid");
+            return false;
+        }
+    }
+}
+void setAsInvalid(bool[] toSet)
+{
+    toSet[0] = true; // can't be used as a input
+    for(int i = 1; i <= NumRowCol; i++)
+    {
+        toSet[i] = false;  
+    }
+}
+
+bool isValidMove(Coordinates coor)
+{
+    // this can be done with only one array but for sake of clarity
+    bool[] isInValidRow = new bool[NumRowCol+1];
+    setAsInvalid(isInValidRow);
+    bool[] isInValidCol = new bool[NumRowCol+1];
+    setAsInvalid(isInValidCol);
+    bool[] isInValidSquare = new bool[NumRowCol+1];
+    setAsInvalid(isInValidSquare);
+
+    // checking row
+    for(int col = 0; col < NumRowCol; col++)
+    {
+        // row stays fixed
+        isInValidRow[board[coor.Row, col]] =  true; // is it used
+    }
+    // the number is already in the row
+    if(isInValidRow[coor.Value])
+        return false; 
+
+    // checking Column
+    for (int row = 0; row < NumRowCol; row++)
+    {
+        // column stays fixed
+        isInValidCol[board[row, coor.Column]] = true; // is it used
+    }
+    // the number is already in that column
+    if (isInValidCol[coor.Value])
+        return false;
+
+    int startingRow = (coor.Row / 3) * 3; // 0 1 2 = 0, 3 4 5 = 3, 6 7 8 = 6
+    int startingCol = (coor.Column / 3) * 3;
+    int endRow = startingRow + 3;
+    int endCol = startingCol + 3;
+
+    for (int row = startingRow; row < endRow; row++)
+    {
+        for(int col = startingCol; col < endCol; col++) 
+        {
+            isInValidSquare[board[row, col]] = true;
+        }
+    }
+
+    // We need to respond if it is valid
+    return !isInValidSquare[coor.Value];
+}
+
 Coordinates ParseCoordinate(string coordinate)
 {
-    tString(coordinate.Length.ToString());
-    if (coordinate.Length != 4)
+    if (!isValidCoordFrom(coordinate))
     {
         Console.WriteLine(coordinate + " is not a valid input");
         return new Coordinates() { Column = invalidCol, Row = invalidRow, Value = invalidValue };
@@ -157,67 +269,132 @@ Coordinates ParseCoordinate(string coordinate)
     short row = 0;
     short value = 0;
 
-
-    // Check if letters are correct
-    if (newCoor[Column] >= 'A' && newCoor[Column] <= 'I')
+    if (coordinate.Length == 3)
     {
-        if (short.TryParse(newCoor[Row].ToString(), out row) && row >= 1 && row <= 9)
-        {
-            if (short.TryParse(newCoor[Value].ToString(), out value) && value >= 1 && value <= 9)
-            {
-                return new Coordinates
-                {
-                    Column = newCoor[Column],
-                    Row = row,
-                    Value = value,
-                };
-            }
-            else
-            {
-                Console.WriteLine(coordinate + " has an invalid value");
-            }
-        }
-        else
-        {
-            Console.WriteLine(coordinate + " has an invalid row");
-        }
+        short.TryParse(newCoor[Value - 1].ToString(), out value);
     }
     else
     {
-        Console.WriteLine(coordinate + " has an invalid column");
+        // regular c1 7
+        short.TryParse(newCoor[Value].ToString(), out value);   
     }
 
-    return new Coordinates() { Column = invalidCol, Row = invalidRow, Value = invalidValue };
+    return new Coordinates
+    {
+        Column = (short)(newCoor[Column] - 'A'), // Substract the value of A 
+        Row = (short)(row - 1), // the user use 1 to 9
+        Value = value,
+    };
 }
 
-void menu()
+Command isCommand(string input)
 {
-    string answer;
-    bool quit = false;
+    var capInput = input.ToUpper();
+    if (capInput == "QUIT" || capInput == "Q")
+        return Command.Quit;
+
+    if (capInput == "READ" || capInput == "READFILE" || capInput == "RF")      
+        return Command.ReadFile;
+
+    if (capInput == "SAVE" || capInput == "S")
+        return Command.Save;
+
+    if (capInput == "SAVEQUIT" || capInput == "SQ" || capInput == "QS")
+    {
+        return Command.SaveAndQuit;
+    }
+    if (capInput == "OPTIONS" || capInput ==  "OPTION" || capInput == "O")
+        return Command.DisplayOptions;
+
+    if (capInput == "BOARD" ||  capInput == "B")
+        return Command.DisplayBoard;
+
+    if (capInput == "RESET" || capInput == "RESETBOARD" || capInput == "RB")
+    {
+        Console.WriteLine("Reloading board file");
+        return Command.ReloadBoard;
+    }
+    if(isValidCoordFrom(input))
+        return Command.Valid;
+
+    return Command.Invalid;
+}
+
+void gameIntro()
+{
+    Console.WriteLine("Welcome to Sudoku:");
+    Console.WriteLine("The rules are simple select a column and Row followed by the number to enter");
+    Console.WriteLine("Example: c19, C1 9 or c1 9");
+    Console.WriteLine("If want to see the options type o or options");
+}
+
+void displayOptions()
+{
+    Console.ForegroundColor = ConsoleColor.Yellow;
+    Console.WriteLine("Options are:");
+    Console.WriteLine("-----------------------------------------------------");
+    Console.ForegroundColor = ConsoleColor.White;
+    Console.WriteLine("(c19) Input a change ex. \"c1 2\" or \"c12\"");
+    Console.WriteLine("(o)   Display options ex. \"options\", \"option\" or \"o\"");
+    Console.WriteLine("(b)   Display board ex. \"board\" or \"b\"");
+    Console.WriteLine("(q)   Quit game without save. ex. \"quit\" or \"q\"");
+    Console.WriteLine("(s)   Save game. ex. \"save\" or \"s\"");
+    Console.WriteLine("(sq)  Save and Quit game. ex. \"savequit\", \"sq\" or \"qs\"");
+    Console.WriteLine("(rf)  Read new file with board. ex. \"read\", \"readfile\" or \"rf\"");
+    Console.WriteLine("(rb)  Reset board to initial. ex. \"reset\", \"resetboard\" or \"rb\"");
+    Console.ForegroundColor = ConsoleColor.Yellow;
+    Console.WriteLine("-----------------------------------------------------");
+    Console.ForegroundColor = ConsoleColor.White;
+    Console.WriteLine();
+}                     
+void menu()            
+{
+    string answer;     
+    Command command;
     do
     {
         Console.Write("Move: ");
 
         answer = Console.ReadLine();
-        if (answer == "quit" || answer == "q")
+        command = isCommand(answer);
+        switch (command)
         {
-            Console.WriteLine("Thanks for playing");
-            quit = true;
-        }
-        if(!quit)
-        {
-            Coordinates coordinates = ParseCoordinate(answer);
-            if(isValidCoordinate(coordinates))
-            {
-                Console.WriteLine("Good coordinates: " + coordinates + " Let's play!");
-            }
-            else
-            {
+            case Command.Quit:
+                Console.WriteLine("Thanks for playing");
+                break;
+            case Command.Invalid:
                 Console.WriteLine("That movement is not possible try again");
+                break;
+            case Command.Valid:
+            {
+                Coordinates coordinates = ParseCoordinate(answer);
+                Console.WriteLine("Good coordinates: " + coordinates + " Let's play!");
+                break;
             }
+            case Command.DisplayOptions:
+                displayOptions();
+                break;
+            case Command.DisplayBoard:
+                displayBoard();
+                break;
+            case Command.SaveAndQuit:
+                Console.WriteLine("Save and Quit Not implemented yet");
+                break;
+            case Command.Save:
+                Console.WriteLine("Save Not implemented yet");
+                break;
+            case Command.ReadFile:
+                Console.WriteLine("Reading Not implemented yet");
+                break;
+            case Command.ReloadBoard:
+                Console.WriteLine("Not implemented yet");
+                break;
+            default:
+                Console.WriteLine("That is not recognized, try again");
+                break;
         }
 
-    } while (!quit); 
+    } while (command != Command.Quit); 
 }
 
 
@@ -225,20 +402,38 @@ void main()
 {
     // \Sudoku\Sudoku\bin\Debug\net8.0\here is where the program is running
     readBoard("..\\..\\..\\board.txt");
-    board[0, 0] = (short)1;
+    // board[0, 0] = (short)1;
     // displayBoardDebug(oriBoard);
-    displayBoard();
     gameIntro();
+    displayOptions();
+    displayBoard();
     menu();
 }
 
 
 main();
 
+enum Command
+{
+    Invalid = 0,
+    Valid,
+    DisplayOptions,
+    DisplayBoard,
+    Quit,
+    Save, // Not implemented
+    SaveAndQuit, // Not implemented
+    ReadFile, // Partial needs to ask for file name
+    ReloadBoard, // Not implemented
+}
 
 public struct Coordinates
 {
-    public char Column { get; set; }
+    public short Column { get; set; }
     public short Row { get; set; }
+
+    public readonly short GetRow => (short)(Row + 1); // because of 0 index
+
+    public readonly char GetCol => (char)(Column + 65);
+
     public short Value { get; set; }
 }
