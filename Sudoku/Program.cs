@@ -23,12 +23,17 @@ void tString(string t)
 {
     Console.WriteLine("Value: " + t);
 }
-bool isValidCoordinate(Coordinates coordenadas)
+bool isValidCoordinate(Coordinates coordinates)
 {
-    if(coordenadas.Column == invalidCol || coordenadas.Row == invalidRow || coordenadas.Value == invalidValue)
-    {
+    if(coordinates.Column == invalidCol || coordinates.Row == invalidRow || coordinates.Value == invalidValue)
         return false;
-    }
+
+    if (coordinates.Column <= 'A' || coordinates.Column >= 'I')
+        return false;
+
+    if(coordinates.Value <= 1 || coordinates.Value >= 9)
+        return false;
+
     return true;
 }
 
@@ -74,7 +79,6 @@ Coordinates ParseCoordinate(string coordinate)
     {
         Console.WriteLine(coordinate + " has an invalid column");
     }
-   
 
     return new Coordinates() { Column = invalidCol, Row = invalidRow, Value = invalidValue };
 }
