@@ -1,6 +1,4 @@
-﻿using System;
-using System.Drawing;
-
+﻿
 const short Column = 0;
 const short Row = 1;
 const short Value = 3;
@@ -499,7 +497,7 @@ bool isValidMove(short[,] boardToValidateIn, Coordinates coor, bool showError = 
 
     // We need to respond if it is valid
     if (showError && isInValidSquare[coor.Value])
-        Console.WriteLine(coor.Value + " is already in the square " + coor.GetCol + coor.GetRow);
+        Console.WriteLine(coor.Value + " is already in the square of " + coor.GetCol + coor.GetRow);
 
     return !isInValidSquare[coor.Value];
 }
