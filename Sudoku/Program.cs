@@ -9,7 +9,10 @@ const short invalidRow = 0;
 const short invalidValue = 0;
 const short NumRowCol = 9;
 short[,] board = new short[NumRowCol, NumRowCol];
+initializeBoard(board);
 short[,] oriBoard = new short[NumRowCol, NumRowCol];
+initializeBoard(oriBoard);
+string FileToSave = "Sudoku";
 
 bool readBoard(string fileName)
 {
@@ -33,23 +36,84 @@ bool readBoard(string fileName)
             // Open the file and create a StreamReader to read from it
             using (StreamReader sr = new StreamReader(fileName))
             {
+                bool isSavedBoard = false;
+                bool isOriginal = false;
+                var numOfRowsToRead = NumRowCol;
                 // Read each line of the file
-                for (int i = 0; i < NumRowCol; i++)
+                for (int i = 0; i < numOfRowsToRead; i++)
                 {
                     string line = sr.ReadLine();
+
                     if (line != null)
                     {
+                        // It is a save board
+                        if (i == 0 && line == "In Progress")
+                        {
+                            isSavedBoard = true; // Skip first line
+                            i--;
+                            numOfRowsToRead = NumRowCol+1;
+                            continue;
+                        }
+
+                        // Do not read this line
+                        if (i == 9 && line == "Original" && isSavedBoard)
+                        {
+                            i = -1;
+                            isOriginal = true;
+                            numOfRowsToRead = NumRowCol;
+                            continue;
+                        }
+
+                        if (!isOriginal && i == 0 && line != "Original" && !isSavedBoard)
+                            isOriginal = true;
+
                         // Split the line into individual numbers
                         string[] numbers = line.Split(' ');
 
                         // Parse and populate the board array
                         for (int j = 0; j < NumRowCol; j++)
                         {
-                            board[i, j] = short.Parse(numbers[j]);
+                            // I reading the saved one
+                            if (!isOriginal && isSavedBoard)
+                            {
+                                short possible = short.Parse(numbers[j]);
+                                // do not need to save something that it is already there
+                                if (possible == 0)
+                                    continue;
+                                if (isValidMove(board, new Coordinates { Row = (short)i, Column = (short)j, Value = possible }))
+                                {
+                                    board[i, j] = possible;
+                                }
+                                else
+                                {
+                                    Console.WriteLine("Error while reading file: " + fileName + " input: " + possible + " is not correct in: " + j + i);
+                                    return false;
+                                }
+                            }
+                            if (isOriginal)
+                            {
+                                short possible = short.Parse(numbers[j]);
+                                // do not need to save something that it is already there
+                                if (possible == 0)
+                                    continue;
+                                if (isValidMove(oriBoard, new Coordinates { Row = (short)i, Column = (short)j, Value = possible }))
+                                {
+                                    oriBoard[i, j] = possible;
+                                }
+                                else
+                                {
+                                    Console.WriteLine("Error while reading file: " + fileName + " input: " + possible + " is not correct in: " + j + i);
+                                    return false;
+                                }
+                            }
                         }
                     }
                 }
-                copyBoard(board); // Keep a copy for undo
+
+                // duplicate to play if it has no saved board
+                if(isOriginal && !isSavedBoard)
+                    copyBoard(oriBoard, board); // Keep a copy for undo
+
                 return true; // file was read correctly
             }
         }
@@ -79,14 +143,48 @@ void displayBoardDebug(short[,] boardToDisplay)
     }
 }
 
-void copyBoard(short[,] boardToCopy)
+void copyBoard(short[,] copyFrom, short[,] copyTo)
 {
     for (int i = 0; i < NumRowCol; i++)
     {
         for (int j = 0; j < NumRowCol; j++)
         {
-            oriBoard[i,j] = boardToCopy[i, j];
+            copyTo[i,j] = copyFrom[i, j];
         }
+    }
+}
+
+void resetBoard()
+{
+    Console.WriteLine("Are you sure you want to reset the board? (You will lose your progress)");
+    Console.Write("Type y to reset or n to not reset: ");
+    string answer = Console.ReadLine();
+    if (answer.ToUpper() == "YES" || answer.ToUpper() == "Y")
+    {
+        copyBoard(oriBoard, board);
+        Console.WriteLine("Board has been reset");
+    }
+    else
+    {
+        Console.WriteLine("No changes were made");
+    }    
+}
+
+void saveBoard()
+{
+    Console.WriteLine("Do you want your progress)");
+    Console.Write("Type y to save or n to not save: ");
+    string answer = Console.ReadLine();
+
+    if (answer.ToUpper() == "YES" || answer.ToUpper() == "Y")
+    {
+        FileToSave = FileToSave + DateTime.Now + ".txt";
+        copyBoard(oriBoard, board);
+        Console.WriteLine("Board was save as: " + FileToSave);
+    }
+    else
+    {
+        Console.WriteLine("No changes were made");
     }
 }
 
@@ -131,19 +229,20 @@ bool isValidCoordinate(Coordinates coordinates)
     if (oriBoard[coordinates.Row, coordinates.Column] > 0)
         return false;
 
-    if (coordinates.Row > 8 || coordinates.Row < 0)
+    if (isRowColInRange(coordinates.Row))
         return false;
 
-    if (coordinates.Column > 8 || coordinates.Column < 0)
+    if (isRowColInRange(coordinates.Column))
         return false;
 
-    if(coordinates.Value < 1 || coordinates.Value > 9)
+    if(!isInputInRange(coordinates.Value))
         return false;
 
     return true;
 }
 
-bool isInRange(short val) => val is >= 1 and <= 9;
+bool isRowColInRange(short val) => val is >= 0 and <= 8;
+bool isInputInRange(short val) => val is >= 1 and <= 9;
 
 bool isValidCoordFrom(string coordinate, bool displayError = true)
 {
@@ -160,7 +259,7 @@ bool isValidCoordFrom(string coordinate, bool displayError = true)
     // case of shorthand c17
     if (coordinate.Length == 3)
     {
-        if (!(short.TryParse(newCoor[Value - 1].ToString(), out value) && isInRange(value)))
+        if (!(short.TryParse(newCoor[Value - 1].ToString(), out value) && isInputInRange(value)))
         {
             if (displayError)
                 Console.WriteLine(coordinate[Value - 1] + " is not a valid input");
@@ -168,7 +267,7 @@ bool isValidCoordFrom(string coordinate, bool displayError = true)
         }
         else
         {
-            if (short.TryParse(newCoor[Row].ToString(), out row) && isInRange(row) &&
+            if (short.TryParse(newCoor[Row].ToString(), out row) && isInputInRange(row) &&
                  newCoor[Column] >= 'A' && newCoor[Column] <= 'I')
                 return true;
             else
@@ -180,7 +279,7 @@ bool isValidCoordFrom(string coordinate, bool displayError = true)
         }
     }
     // regular c1 7
-    if (!(short.TryParse(newCoor[Value].ToString(), out value) && isInRange(value)))
+    if (!(short.TryParse(newCoor[Value].ToString(), out value) && isInputInRange(value)))
     {
         if (displayError)
             Console.WriteLine(coordinate[Value] + " is not a valid input");
@@ -188,7 +287,7 @@ bool isValidCoordFrom(string coordinate, bool displayError = true)
     }
     else
     {
-        if(short.TryParse(newCoor[Row].ToString(), out row) && isInRange(row) &&
+        if(short.TryParse(newCoor[Row].ToString(), out row) && isInputInRange(row) &&
              newCoor[Column] >= 'A' && newCoor[Column] <= 'I')
         {
             return true;
@@ -210,7 +309,14 @@ void setAsInvalid(bool[] toSet)
     }
 }
 
-bool isValidMove(Coordinates coor)
+void initializeBoard(short[,] boardToSet)
+{
+    for (int i = 0; i < NumRowCol; i++)
+        for (int j = 0; j < NumRowCol; j++)
+            boardToSet[i,j] = (short)0;
+}
+
+bool isValidMove(short[,] boardToValidateIn, Coordinates coor)
 {
     // this can be done with only one array but for sake of clarity
     bool[] isInValidRow = new bool[NumRowCol+1];
@@ -224,17 +330,17 @@ bool isValidMove(Coordinates coor)
     for(int col = 0; col < NumRowCol; col++)
     {
         // row stays fixed
-        isInValidRow[board[coor.Row, col]] =  true; // is it used
+        isInValidRow[boardToValidateIn[coor.Row, col]] =  true; // is it used
     }
     // the number is already in the row
     if(isInValidRow[coor.Value])
-        return false; 
+        return false;
 
     // checking Column
     for (int row = 0; row < NumRowCol; row++)
     {
         // column stays fixed
-        isInValidCol[board[row, coor.Column]] = true; // is it used
+        isInValidCol[boardToValidateIn[row, coor.Column]] = true; // is it used
     }
     // the number is already in that column
     if (isInValidCol[coor.Value])
@@ -249,7 +355,7 @@ bool isValidMove(Coordinates coor)
     {
         for(int col = startingCol; col < endCol; col++) 
         {
-            isInValidSquare[board[row, col]] = true;
+            isInValidSquare[boardToValidateIn[row, col]] = true;
         }
     }
 
@@ -311,10 +417,8 @@ Command isCommand(string input)
         return Command.DisplayBoard;
 
     if (capInput == "RESET" || capInput == "RESETBOARD" || capInput == "RB")
-    {
-        Console.WriteLine("Reloading board file");
         return Command.ReloadBoard;
-    }
+ 
     if(isValidCoordFrom(input))
         return Command.Valid;
 
@@ -369,7 +473,7 @@ void menu()
             case Command.Valid:
             {
                 Coordinates coordinates = ParseCoordinate(answer);
-                if(isValidCoordinate(coordinates) && isValidMove(coordinates))
+                if(isValidCoordinate(coordinates) && isValidMove(board, coordinates))
                     Console.WriteLine("Good move! " + coordinates.Value + " in coordinates: " + coordinates.GetCol + coordinates.GetRow + " works");
                 else
                     Console.WriteLine("Value: " + coordinates.Value + " in coordinates: " + coordinates.GetCol + coordinates.GetRow + " is invalid");
@@ -381,17 +485,17 @@ void menu()
             case Command.DisplayBoard:
                 displayBoard();
                 break;
-            case Command.SaveAndQuit:
-                Console.WriteLine("Save and Quit Not implemented yet");
-                break;
             case Command.Save:
                 Console.WriteLine("Save Not implemented yet");
+                break;
+            case Command.SaveAndQuit:
+                Console.WriteLine("Save and Quit Not implemented yet");
                 break;
             case Command.ReadFile:
                 Console.WriteLine("Reading Not implemented yet");
                 break;
             case Command.ReloadBoard:
-                Console.WriteLine("Not implemented yet");
+                resetBoard();
                 break;
             default:
                 Console.WriteLine("That is not recognized, try again");
@@ -405,7 +509,8 @@ void menu()
 void main()
 {
     // \Sudoku\Sudoku\bin\Debug\net8.0\here is where the program is running
-    readBoard("..\\..\\..\\board.txt");
+    // readBoard("..\\..\\..\\Sudoku.txt");
+    readBoard("..\\..\\..\\Board.txt");
     // board[0, 0] = (short)1;
     // displayBoardDebug(oriBoard);
     gameIntro();
