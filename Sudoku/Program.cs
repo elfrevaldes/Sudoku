@@ -30,7 +30,7 @@ bool readBoard(ref short[,] originalBoard, ref short[,] currentGame, string file
                 // Read each line of the file
                 for (int i = 0; i < numOfRowsToRead; i++)
                 {
-                    string line = sr.ReadLine();
+                    string line = sr.ReadLine()!;
 
                     if (line != null)
                     {
@@ -95,6 +95,10 @@ bool readBoard(ref short[,] originalBoard, ref short[,] currentGame, string file
                                 }
                             }
                         }
+                    }
+                    else
+                    {
+                        Console.WriteLine("Error: While reading the file in line: " + (i+1));
                     }
                 }
 
@@ -201,7 +205,12 @@ bool ShouldIProceed(string message)
 {
     Console.WriteLine(message);
     Console.Write("Type y to proceed or n to stop: ");
-    string answer = Console.ReadLine();
+    string answer = Console.ReadLine()!;
+    if (answer == null)
+    {
+        Console.WriteLine("Error: Unable to read input.");
+        return false; // Assuming we don't want to proceed in case of an error
+    }
     return answer.ToUpper() == "YES" || answer.ToUpper() == "Y";
 }
 
@@ -230,7 +239,13 @@ void ReadGameFile()
     if (ShouldIProceed("Do you want to load a saved game? (You will lose your current progress)"))
     {
         Console.Write("What is the name of the file: ");
-        string fileName = Console.ReadLine();
+        string fileName = Console.ReadLine()!;
+        if (fileName == null)
+        {
+            Console.WriteLine("Error: Unable to read input.");
+            return; // Assuming we don't want to proceed in case of an error
+        }
+
         if (File.Exists(fileName))
         {
             // We do not want to modify the current game if we fail
@@ -258,6 +273,10 @@ void ReadGameFile()
             Console.WriteLine("Sorry we could not load that game");
             Console.WriteLine("The file: " + fileName + " does not exist");
         }
+    }
+    else
+    {
+        Console.WriteLine("No game was read");
     }
 }
 
@@ -331,11 +350,6 @@ void displayBoard()
         PrintRowSeparator(row);        
     }
     Console.WriteLine();
-}
-
-void tString(string t)
-{
-    Console.WriteLine("Value: " + t);
 }
 
 bool isValidCoordinate(Coordinates coordinates)
@@ -415,6 +429,7 @@ bool isValidCoordFrom(string coordinate, bool displayError = true)
         }
     }
 }
+
 void setAsInvalid(bool[] toSet)
 {
     toSet[0] = true; // can't be used as a input
@@ -445,7 +460,7 @@ bool isValidMove(short[,] boardToValidateIn, Coordinates coor, bool showError = 
     for(int col = 0; col < NumRowCol; col++)
     {
         // row stays fixed
-        isInValidRow[boardToValidateIn[coor.Row, col]] =  true; // is it used
+        isInValidRow[boardToValidateIn[coor.Row, col]] =  true; // it is used
     }
     // the number is already in the row
     if (isInValidRow[coor.Value])
@@ -613,14 +628,23 @@ void menu()
     {
         Console.Write("Move: ");
 
-        answer = Console.ReadLine();
-        command = isCommand(answer);
+        answer = Console.ReadLine()!;
+        if (answer == null)
+        {
+            Console.WriteLine("Error: Unable to read input.");
+            command = Command.Invalid;
+        }
+        else
+        {
+            command = isCommand(answer);
+        }
         switch (command)
         {
             case Command.Quit:
             {
                 if (!ShouldIProceed("Are you sure you want to quit? (You will lose current progress if not saved)"))
                 {
+                    Console.WriteLine("No changes were made");  
                     command = Command.Invalid;
                 }
                 else
