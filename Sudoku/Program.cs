@@ -12,22 +12,10 @@ short[,] board = new short[NumRowCol, NumRowCol];
 initializeBoard(board);
 short[,] oriBoard = new short[NumRowCol, NumRowCol];
 initializeBoard(oriBoard);
-string FileToSave = "Sudoku";
+string FileToSave = "";
 
 bool readBoard(string fileName)
 {
-    /* debugging
-    string currentDirectory = Directory.GetCurrentDirectory();
-    Console.WriteLine($"Current Directory: {currentDirectory}");
-    
-    string[] filesInDirectory = Directory.GetFiles(currentDirectory);
-    Console.WriteLine("Files in current directory:");
-    foreach (string file in filesInDirectory)
-    {
-        Console.WriteLine(file);
-    }
-    end debug */
-
     // Check if the file exists
     if (File.Exists(fileName))
     {
@@ -130,6 +118,45 @@ bool readBoard(string fileName)
     return false; // we could not read the file
 }
 
+void WriteBoard(StreamWriter sw, short[,] board)
+{
+    for (int i = 0; i < NumRowCol; i++)
+    {
+        for (int j = 0; j < NumRowCol; j++)
+        {
+            sw.Write(board[i, j]);
+            if (j < NumRowCol - 1)
+            {
+                sw.Write(" ");
+            }
+        }
+        sw.WriteLine();
+    }
+}
+
+void SaveFile(string fileName)
+{
+    try
+    {
+        using (StreamWriter sw = new StreamWriter(fileName))
+        {
+            // Write the "In Progress" section
+            sw.WriteLine("In Progress");
+            WriteBoard(sw, board);
+
+            // Write the "Original" section
+            sw.WriteLine("Original");
+            WriteBoard(sw, oriBoard);
+        }
+        Console.WriteLine($"Boards saved to file: {fileName}");
+    }
+    catch (IOException e)
+    {
+        Console.WriteLine("An error occurred while writing the file:");
+        Console.WriteLine(e.Message);
+    }
+}
+
 void displayBoardDebug(short[,] boardToDisplay)
 {
     Console.WriteLine("Board Contents:");
@@ -170,7 +197,7 @@ void resetBoard()
     }    
 }
 
-void saveBoard()
+bool SaveBoard()
 {
     Console.WriteLine("Do you want your progress)");
     Console.Write("Type y to save or n to not save: ");
@@ -178,13 +205,19 @@ void saveBoard()
 
     if (answer.ToUpper() == "YES" || answer.ToUpper() == "Y")
     {
-        FileToSave = FileToSave + DateTime.Now + ".txt";
-        copyBoard(oriBoard, board);
-        Console.WriteLine("Board was save as: " + FileToSave);
+        if (FileToSave == "")
+        {
+            FileToSave = "Sudoku";
+            string dateTimeFormatted = DateTime.Now.ToString("MM-dd-yy-hh-mm");
+            FileToSave = $"{FileToSave}{dateTimeFormatted}.txt";
+        }
+        SaveFile(FileToSave);
+        return true;
     }
     else
     {
         Console.WriteLine("No changes were made");
+        return false;
     }
 }
 
@@ -229,10 +262,10 @@ bool isValidCoordinate(Coordinates coordinates)
     if (oriBoard[coordinates.Row, coordinates.Column] > 0)
         return false;
 
-    if (isRowColInRange(coordinates.Row))
+    if (!isRowColInRange(coordinates.Row))
         return false;
 
-    if (isRowColInRange(coordinates.Column))
+    if (!isRowColInRange(coordinates.Column))
         return false;
 
     if(!isInputInRange(coordinates.Value))
@@ -394,6 +427,22 @@ Coordinates ParseCoordinate(string coordinate)
     };
 }
 
+bool MakeMove(string move)
+{
+    Coordinates coordinates = ParseCoordinate(move);
+    if (isValidCoordinate(coordinates) && isValidMove(board, coordinates))
+    {
+        Console.WriteLine("Good move! " + coordinates.Value + " in coordinates: " + coordinates.GetCol + coordinates.GetRow + " works");
+        board[coordinates.Row, coordinates.Column] = coordinates.Value;
+        return true;
+    }
+    else
+    {
+        Console.WriteLine("Value: " + coordinates.Value + " in coordinates: " + coordinates.GetCol + coordinates.GetRow + " is invalid");
+        return false;
+    }
+}
+
 Command isCommand(string input)
 {
     var capInput = input.ToUpper();
@@ -472,12 +521,12 @@ void menu()
                 break;
             case Command.Valid:
             {
-                Coordinates coordinates = ParseCoordinate(answer);
-                if(isValidCoordinate(coordinates) && isValidMove(board, coordinates))
-                    Console.WriteLine("Good move! " + coordinates.Value + " in coordinates: " + coordinates.GetCol + coordinates.GetRow + " works");
-                else
-                    Console.WriteLine("Value: " + coordinates.Value + " in coordinates: " + coordinates.GetCol + coordinates.GetRow + " is invalid");
-                break;
+                if (MakeMove(answer))
+                {
+                    displayOptions();
+                    displayBoard();
+                }
+                    break;
             }
             case Command.DisplayOptions:
                 displayOptions();
@@ -486,11 +535,17 @@ void menu()
                 displayBoard();
                 break;
             case Command.Save:
-                Console.WriteLine("Save Not implemented yet");
+                SaveBoard();
                 break;
             case Command.SaveAndQuit:
-                Console.WriteLine("Save and Quit Not implemented yet");
+            {
+                if(SaveBoard())
+                {
+                    Console.WriteLine("Thanks for playing");
+                    command = Command.Quit;
+                }
                 break;
+                }
             case Command.ReadFile:
                 Console.WriteLine("Reading Not implemented yet");
                 break;
