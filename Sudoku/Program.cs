@@ -261,32 +261,74 @@ void ReadGameFile()
     }
 }
 
-void displayBoard()
+void PrintCell(int row, int col, int value)
+{
+    // do not display 0
+    if (value == 0)
+    {
+        Console.Write("  ");
+    }
+    else
+    {
+        if (OriginalBoard[row, col] != 0)
+        { Console.ForegroundColor = ConsoleColor.Blue; }
+        Console.Write(value + " ");
+        Console.ForegroundColor = ConsoleColor.White;
+    }
+}
+
+void PrintRowTitle(int row)
 {
     Console.ForegroundColor = ConsoleColor.Yellow;
-    Console.WriteLine("   A B C D E F G H I");
+    Console.Write(row + 1 + "| ");
     Console.ForegroundColor = ConsoleColor.White;
-    for (int row = 0; row < NumRowCol; row++)
+}
+
+void PrintColSeparator(int col)
+{
+    if ((col + 1) % 3 == 0 && col != 8)
     {
         Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.Write(row + 1 + "| ");
+        Console.Write("| ");
         Console.ForegroundColor = ConsoleColor.White;
+    }
+}
+
+void PrintRowSeparator(int row)
+{
+    if ((row + 1) % 3 == 0 && row != 8)
+    {
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine();
+        Console.Write("   ------+-------+------");
+        Console.WriteLine();
+        Console.ForegroundColor = ConsoleColor.White;
+    }
+    else
+    {
+        Console.WriteLine();
+    }
+}
+
+void PrintTitle()
+{
+    Console.ForegroundColor = ConsoleColor.Yellow;
+    Console.WriteLine("   A B C | D E F | G H I");
+    Console.ForegroundColor = ConsoleColor.White;
+}
+
+void displayBoard()
+{
+    PrintTitle();
+    for (int row = 0; row < NumRowCol; row++)
+    {
+        PrintRowTitle(row);
         for (int col = 0; col < NumRowCol; col++)
         {
-            // do not display 0
-            if (CurrentBoard[row, col] == 0)
-            {
-                Console.Write("  ");
-            }
-            else
-            {
-                if (OriginalBoard[row, col] != 0)
-                { Console.ForegroundColor = ConsoleColor.Blue; }
-                Console.Write(CurrentBoard[row, col] + " ");
-                Console.ForegroundColor = ConsoleColor.White;
-            }
+            PrintCell(row, col, CurrentBoard[row, col]);
+            PrintColSeparator(col);
         }
-        Console.WriteLine();
+        PrintRowSeparator(row);        
     }
     Console.WriteLine();
 }
@@ -528,25 +570,41 @@ void gameIntro()
     Console.WriteLine("If want to see the options type o or options");
 }
 
+void displayShortCut(string shortCut)
+{
+    Console.ForegroundColor = ConsoleColor.Green;
+    Console.Write($"({shortCut})");
+    Console.ForegroundColor = ConsoleColor.White;
+}
 void displayOptions()
 {
     Console.ForegroundColor = ConsoleColor.Yellow;
+    Console.WriteLine();
     Console.WriteLine("Options are:");
     Console.WriteLine("-----------------------------------------------------");
     Console.ForegroundColor = ConsoleColor.White;
-    Console.WriteLine("(c19) Input a change ex. \"c1 2\" or \"c12\"");
-    Console.WriteLine("(o)   Display options ex. \"options\", \"option\" or \"o\"");
-    Console.WriteLine("(b)   Display board ex. \"board\" or \"b\"");
-    Console.WriteLine("(q)   Quit game without save. ex. \"quit\" or \"q\"");
-    Console.WriteLine("(s)   Save game. ex. \"save\" or \"s\"");
-    Console.WriteLine("(sq)  Save and Quit game. ex. \"savequit\", \"sq\" or \"qs\"");
-    Console.WriteLine("(rf)  Read new file with board. ex. \"read\", \"readfile\" or \"rf\"");
-    Console.WriteLine("(rb)  Reset board to initial. ex. \"reset\", \"resetboard\" or \"rb\"");
+    displayShortCut("c19");
+    Console.WriteLine(" Input a change ex. \"c1 2\" or \"c12\"");
+    displayShortCut("o");
+    Console.WriteLine("   Display options ex. \"options\", \"option\" or \"o\"");
+    displayShortCut("b");
+    Console.WriteLine("   Display board ex. \"board\" or \"b\"");
+    displayShortCut("q");
+    Console.WriteLine("   Quit game without save. ex. \"quit\" or \"q\"");
+    displayShortCut("s");
+    Console.WriteLine("   Save game. ex. \"save\" or \"s\"");
+    displayShortCut("sq");
+    Console.WriteLine("  Save and Quit game. ex. \"savequit\", \"sq\" or \"qs\"");
+    displayShortCut("rf");
+    Console.WriteLine("  Read new file with board. ex. \"read\", \"readfile\" or \"rf\"");
+    displayShortCut("rb");
+    Console.WriteLine("  Reset board to initial. ex. \"reset\", \"resetboard\" or \"rb\"");
     Console.ForegroundColor = ConsoleColor.Yellow;
     Console.WriteLine("-----------------------------------------------------");
     Console.ForegroundColor = ConsoleColor.White;
     Console.WriteLine();
-}                     
+}
+
 void menu()            
 {
     string answer;     
@@ -572,7 +630,7 @@ void menu()
                 break;
             }
             case Command.Invalid:
-                Console.WriteLine("That movement is not possible try again");
+                Console.WriteLine("That change is not possible try again");
                 break;
             case Command.Valid:
             {
@@ -615,14 +673,27 @@ void menu()
     } while (command != Command.Quit); 
 }
 
+void startGameWithDefaultBoard()
+{
+    short[,] defaultBoard = new short[,]
+    {
+        {0, 0, 0, 8, 0, 0, 7, 9, 6},
+        {0, 7, 8, 0, 0, 9, 0, 4, 0},
+        {4, 0, 0, 0, 2, 5, 1, 0, 0},
+        {0, 3, 0, 0, 7, 0, 4, 0, 9},
+        {0, 5, 0, 2, 0, 1, 0, 6, 0},
+        {1, 0, 7, 0, 3, 0, 0, 5, 0},
+        {0, 0, 6, 4, 1, 0, 0, 0, 3},
+        {0, 2, 0, 3, 0, 0, 0, 8, 4},
+        {5, 4, 3, 0, 0, 7, 0, 0, 0}
+    };
+    copyBoard(defaultBoard, OriginalBoard);
+    copyBoard(defaultBoard, CurrentBoard);
+}
 
 void main()
 {
-    // \Sudoku\Sudoku\bin\Debug\net8.0\here is where the program is running
-    // readBoard("..\\..\\..\\Sudoku.txt");
-    readBoard(ref OriginalBoard, ref CurrentBoard, "..\\..\\..\\Board.txt");
-    // board[0, 0] = (short)1;
-    // displayBoardDebug(oriBoard);
+    startGameWithDefaultBoard();
     gameIntro();
     displayOptions();
     displayBoard();
