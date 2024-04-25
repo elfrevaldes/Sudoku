@@ -131,10 +131,10 @@ bool isValidCoordinate(Coordinates coordinates)
     if (oriBoard[coordinates.Row, coordinates.Column] > 0)
         return false;
 
-    if (coordinates.Row > 9 || coordinates.Row < 1)
+    if (coordinates.Row > 8 || coordinates.Row < 0)
         return false;
 
-    if (coordinates.Column > 9 || coordinates.Column < 1)
+    if (coordinates.Column > 8 || coordinates.Column < 0)
         return false;
 
     if(coordinates.Value < 1 || coordinates.Value > 9)
@@ -169,7 +169,7 @@ bool isValidCoordFrom(string coordinate, bool displayError = true)
         else
         {
             if (short.TryParse(newCoor[Row].ToString(), out row) && isInRange(row) &&
-                 short.TryParse(newCoor[Column].ToString(), out col) && isInRange(col))
+                 newCoor[Column] >= 'A' && newCoor[Column] <= 'I')
                 return true;
             else
             {
@@ -189,7 +189,7 @@ bool isValidCoordFrom(string coordinate, bool displayError = true)
     else
     {
         if(short.TryParse(newCoor[Row].ToString(), out row) && isInRange(row) &&
-             short.TryParse(newCoor[Column].ToString(), out col) && isInRange(col))
+             newCoor[Column] >= 'A' && newCoor[Column] <= 'I')
         {
             return true;
         }
@@ -279,6 +279,7 @@ Coordinates ParseCoordinate(string coordinate)
         short.TryParse(newCoor[Value].ToString(), out value);   
     }
 
+    short.TryParse(newCoor[Row].ToString(), out row);
     return new Coordinates
     {
         Column = (short)(newCoor[Column] - 'A'), // Substract the value of A 
@@ -368,7 +369,10 @@ void menu()
             case Command.Valid:
             {
                 Coordinates coordinates = ParseCoordinate(answer);
-                Console.WriteLine("Good coordinates: " + coordinates + " Let's play!");
+                if(isValidCoordinate(coordinates) && isValidMove(coordinates))
+                    Console.WriteLine("Good move! " + coordinates.Value + " in coordinates: " + coordinates.GetCol + coordinates.GetRow + " works");
+                else
+                    Console.WriteLine("Value: " + coordinates.Value + " in coordinates: " + coordinates.GetCol + coordinates.GetRow + " is invalid");
                 break;
             }
             case Command.DisplayOptions:
