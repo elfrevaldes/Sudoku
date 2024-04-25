@@ -8,13 +8,13 @@ const short invalidCol = 0;
 const short invalidRow = 0;
 const short invalidValue = 0;
 const short NumRowCol = 9;
-short[,] board = new short[NumRowCol, NumRowCol];
-initializeBoard(board);
-short[,] oriBoard = new short[NumRowCol, NumRowCol];
-initializeBoard(oriBoard);
+short[,] CurrentBoard = new short[NumRowCol, NumRowCol];
+initializeBoard(CurrentBoard);
+short[,] OriginalBoard = new short[NumRowCol, NumRowCol];
+initializeBoard(OriginalBoard);
 string FileToSave = "";
 
-bool readBoard(string fileName)
+bool readBoard(ref short[,] originalBoard, ref short[,] currentGame, string fileName)
 {
     // Check if the file exists
     if (File.Exists(fileName))
@@ -68,13 +68,13 @@ bool readBoard(string fileName)
                                 // do not need to save something that it is already there
                                 if (possible == 0)
                                     continue;
-                                if (isValidMove(board, new Coordinates { Row = (short)i, Column = (short)j, Value = possible }))
+                                if (isValidMove(currentGame, new Coordinates { Row = (short)i, Column = (short)j, Value = possible }))
                                 {
-                                    board[i, j] = possible;
+                                    currentGame[i, j] = possible;
                                 }
                                 else
                                 {
-                                    Console.WriteLine("Error while reading file: " + fileName + " input: " + possible + " is not correct in: " + j + i);
+                                    Console.WriteLine("Error while reading file: " + fileName + " Current input: " + possible + " is not correct in: " + (char)(j+66) + (i+1));
                                     return false;
                                 }
                             }
@@ -84,13 +84,13 @@ bool readBoard(string fileName)
                                 // do not need to save something that it is already there
                                 if (possible == 0)
                                     continue;
-                                if (isValidMove(oriBoard, new Coordinates { Row = (short)i, Column = (short)j, Value = possible }))
+                                if (isValidMove(originalBoard, new Coordinates { Row = (short)i, Column = (short)j, Value = possible }))
                                 {
-                                    oriBoard[i, j] = possible;
+                                    originalBoard[i, j] = possible;
                                 }
                                 else
                                 {
-                                    Console.WriteLine("Error while reading file: " + fileName + " input: " + possible + " is not correct in: " + j + i);
+                                    Console.WriteLine("Error while reading file: " + fileName + " Original input: " + possible + " is not correct in: " + (char)(j + 66) + (i + 1));
                                     return false;
                                 }
                             }
@@ -100,7 +100,7 @@ bool readBoard(string fileName)
 
                 // duplicate to play if it has no saved board
                 if(isOriginal && !isSavedBoard)
-                    copyBoard(oriBoard, board); // Keep a copy for undo
+                    copyBoard(originalBoard, currentGame); // Keep a copy for undo
 
                 return true; // file was read correctly
             }
@@ -109,13 +109,14 @@ bool readBoard(string fileName)
         {
             Console.WriteLine("An error occurred while reading the file:");
             Console.WriteLine(e.Message);
+            return false;
         }
     }
     else
     {
         Console.WriteLine($"File '{fileName}' does not exist.");
+        return false;
     }
-    return false; // we could not read the file
 }
 
 void WriteBoard(StreamWriter sw, short[,] board)
@@ -142,11 +143,11 @@ void SaveFile(string fileName)
         {
             // Write the "In Progress" section
             sw.WriteLine("In Progress");
-            WriteBoard(sw, board);
+            WriteBoard(sw, CurrentBoard);
 
             // Write the "Original" section
             sw.WriteLine("Original");
-            WriteBoard(sw, oriBoard);
+            WriteBoard(sw, OriginalBoard);
         }
         Console.WriteLine($"Boards saved to file: {fileName}");
     }
@@ -183,12 +184,11 @@ void copyBoard(short[,] copyFrom, short[,] copyTo)
 
 void resetBoard()
 {
-    Console.WriteLine("Are you sure you want to reset the board? (You will lose your progress)");
-    Console.Write("Type y to reset or n to not reset: ");
-    string answer = Console.ReadLine();
-    if (answer.ToUpper() == "YES" || answer.ToUpper() == "Y")
+    if (ShouldIProceed("Are you sure you want to reset the board? (You will lose your current progress)"))
     {
-        copyBoard(oriBoard, board);
+        copyBoard(OriginalBoard, CurrentBoard);
+        displayOptions();
+        displayBoard();
         Console.WriteLine("Board has been reset");
     }
     else
@@ -197,13 +197,17 @@ void resetBoard()
     }    
 }
 
+bool ShouldIProceed(string message)
+{
+    Console.WriteLine(message);
+    Console.Write("Type y to proceed or n to stop: ");
+    string answer = Console.ReadLine();
+    return answer.ToUpper() == "YES" || answer.ToUpper() == "Y";
+}
+
 bool SaveBoard()
 {
-    Console.WriteLine("Do you want your progress)");
-    Console.Write("Type y to save or n to not save: ");
-    string answer = Console.ReadLine();
-
-    if (answer.ToUpper() == "YES" || answer.ToUpper() == "Y")
+    if (ShouldIProceed("Do you want to save your progress?"))
     {
         if (FileToSave == "")
         {
@@ -221,6 +225,42 @@ bool SaveBoard()
     }
 }
 
+void ReadGameFile()
+{
+    if (ShouldIProceed("Do you want to load a saved game? (You will lose your current progress)"))
+    {
+        Console.Write("What is the name of the file: ");
+        string fileName = Console.ReadLine();
+        if (File.Exists(fileName))
+        {
+            // We do not want to modify the current game if we fail
+            short[,] newCurrentB = new short[NumRowCol, NumRowCol];
+            initializeBoard(newCurrentB);
+            short[,] newOriginalB = new short[NumRowCol, NumRowCol];
+            initializeBoard(newOriginalB);
+
+            if (readBoard(ref newOriginalB, ref newCurrentB, fileName))
+            {
+                copyBoard(newOriginalB, OriginalBoard);
+                copyBoard(newCurrentB, CurrentBoard);
+                displayOptions();
+                displayBoard();
+                Console.WriteLine("The game was loaded succesfuly");
+            }
+            else
+            {
+                Console.WriteLine("Sorry we could not load that game");
+            }
+
+        }
+        else
+        {
+            Console.WriteLine("Sorry we could not load that game");
+            Console.WriteLine("The file: " + fileName + " does not exist");
+        }
+    }
+}
+
 void displayBoard()
 {
     Console.ForegroundColor = ConsoleColor.Yellow;
@@ -234,15 +274,15 @@ void displayBoard()
         for (int col = 0; col < NumRowCol; col++)
         {
             // do not display 0
-            if (board[row, col] == 0)
+            if (CurrentBoard[row, col] == 0)
             {
                 Console.Write("  ");
             }
             else
             {
-                if (oriBoard[row, col] != 0)
+                if (OriginalBoard[row, col] != 0)
                 { Console.ForegroundColor = ConsoleColor.Blue; }
-                Console.Write(board[row, col] + " ");
+                Console.Write(CurrentBoard[row, col] + " ");
                 Console.ForegroundColor = ConsoleColor.White;
             }
         }
@@ -259,7 +299,7 @@ void tString(string t)
 bool isValidCoordinate(Coordinates coordinates)
 {
     // is read only
-    if (oriBoard[coordinates.Row, coordinates.Column] > 0)
+    if (OriginalBoard[coordinates.Row, coordinates.Column] > 0)
         return false;
 
     if (!isRowColInRange(coordinates.Row))
@@ -282,7 +322,7 @@ bool isValidCoordFrom(string coordinate, bool displayError = true)
     if (coordinate.Length > 4 || coordinate.Length < 3)
     {
         if(displayError)
-            Console.WriteLine(coordinate + " is not a valid input");
+            Console.WriteLine(coordinate + " has to many arguments or too few");
         return false;
     }
     var newCoor = coordinate.ToUpper();
@@ -349,7 +389,7 @@ void initializeBoard(short[,] boardToSet)
             boardToSet[i,j] = (short)0;
 }
 
-bool isValidMove(short[,] boardToValidateIn, Coordinates coor)
+bool isValidMove(short[,] boardToValidateIn, Coordinates coor, bool showError = true)
 {
     // this can be done with only one array but for sake of clarity
     bool[] isInValidRow = new bool[NumRowCol+1];
@@ -366,8 +406,12 @@ bool isValidMove(short[,] boardToValidateIn, Coordinates coor)
         isInValidRow[boardToValidateIn[coor.Row, col]] =  true; // is it used
     }
     // the number is already in the row
-    if(isInValidRow[coor.Value])
+    if (isInValidRow[coor.Value])
+    {
+        if (showError)
+            Console.WriteLine(coor.Value + " is already in Row " + coor.GetRow);
         return false;
+    }
 
     // checking Column
     for (int row = 0; row < NumRowCol; row++)
@@ -377,7 +421,11 @@ bool isValidMove(short[,] boardToValidateIn, Coordinates coor)
     }
     // the number is already in that column
     if (isInValidCol[coor.Value])
+    {
+        if (showError)
+            Console.WriteLine(coor.Value + " is already in Col " + coor.GetCol);
         return false;
+    }
 
     int startingRow = (coor.Row / 3) * 3; // 0 1 2 = 0, 3 4 5 = 3, 6 7 8 = 6
     int startingCol = (coor.Column / 3) * 3;
@@ -393,6 +441,9 @@ bool isValidMove(short[,] boardToValidateIn, Coordinates coor)
     }
 
     // We need to respond if it is valid
+    if (showError && isInValidSquare[coor.Value])
+        Console.WriteLine(coor.Value + " is already in the square " + coor.GetCol + coor.GetRow);
+
     return !isInValidSquare[coor.Value];
 }
 
@@ -430,17 +481,12 @@ Coordinates ParseCoordinate(string coordinate)
 bool MakeMove(string move)
 {
     Coordinates coordinates = ParseCoordinate(move);
-    if (isValidCoordinate(coordinates) && isValidMove(board, coordinates))
+    if (isValidCoordinate(coordinates) && isValidMove(CurrentBoard, coordinates))
     {
-        Console.WriteLine("Good move! " + coordinates.Value + " in coordinates: " + coordinates.GetCol + coordinates.GetRow + " works");
-        board[coordinates.Row, coordinates.Column] = coordinates.Value;
+        CurrentBoard[coordinates.Row, coordinates.Column] = coordinates.Value;
         return true;
     }
-    else
-    {
-        Console.WriteLine("Value: " + coordinates.Value + " in coordinates: " + coordinates.GetCol + coordinates.GetRow + " is invalid");
-        return false;
-    }
+    return false;
 }
 
 Command isCommand(string input)
@@ -514,8 +560,17 @@ void menu()
         switch (command)
         {
             case Command.Quit:
-                Console.WriteLine("Thanks for playing");
+            {
+                if (!ShouldIProceed("Are you sure you want to quit? (You will lose current progress if not saved)"))
+                {
+                    command = Command.Invalid;
+                }
+                else
+                {
+                    Console.WriteLine("Thanks for playing");
+                }
                 break;
+            }
             case Command.Invalid:
                 Console.WriteLine("That movement is not possible try again");
                 break;
@@ -526,7 +581,7 @@ void menu()
                     displayOptions();
                     displayBoard();
                 }
-                    break;
+                break;
             }
             case Command.DisplayOptions:
                 displayOptions();
@@ -547,7 +602,7 @@ void menu()
                 break;
                 }
             case Command.ReadFile:
-                Console.WriteLine("Reading Not implemented yet");
+                ReadGameFile();
                 break;
             case Command.ReloadBoard:
                 resetBoard();
@@ -565,7 +620,7 @@ void main()
 {
     // \Sudoku\Sudoku\bin\Debug\net8.0\here is where the program is running
     // readBoard("..\\..\\..\\Sudoku.txt");
-    readBoard("..\\..\\..\\Board.txt");
+    readBoard(ref OriginalBoard, ref CurrentBoard, "..\\..\\..\\Board.txt");
     // board[0, 0] = (short)1;
     // displayBoardDebug(oriBoard);
     gameIntro();
@@ -584,10 +639,10 @@ enum Command
     DisplayOptions,
     DisplayBoard,
     Quit,
-    Save, // Not implemented
-    SaveAndQuit, // Not implemented
-    ReadFile, // Partial needs to ask for file name
-    ReloadBoard, // Not implemented
+    Save,
+    SaveAndQuit,
+    ReadFile,
+    ReloadBoard,
 }
 
 public struct Coordinates
