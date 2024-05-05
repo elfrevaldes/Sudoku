@@ -721,8 +721,7 @@ void main()
     displayBoard();
     menu();
 }
-
-
+// call main
 main();
 
 enum Command
